@@ -3,7 +3,7 @@ use core::{
     marker::{PhantomData, PhantomPinned},
 };
 
-use wayland_headers::wayland_client::*;
+use wayland_headers::{wayland_client::*, xdg_shell_client_protocol::*};
 
 #[repr(C)]
 pub struct libdecor {
@@ -79,18 +79,6 @@ pub struct libdecor_interface {
 
 #[repr(C)]
 pub struct libdecor_state {
-    _data: (),
-    _marker: PhantomData<(*mut u8, PhantomPinned)>,
-}
-
-#[repr(C)]
-pub struct xdg_surface {
-    _data: (),
-    _marker: PhantomData<(*mut u8, PhantomPinned)>,
-}
-
-#[repr(C)]
-pub struct xdg_toplevel {
     _data: (),
     _marker: PhantomData<(*mut u8, PhantomPinned)>,
 }

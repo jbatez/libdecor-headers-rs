@@ -17,9 +17,9 @@ dependencies = [
 
 [[package]]
 name = "wayland-headers"
-version = "0.1.0+1.18.0"
+version = "0.1.1+wayland-1.18.0-protocols-1.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "43775c3361e01be308a610049c029bf70a99d268b3dbaedadffa8f273b95d805"
+checksum = "f05b2e64dd5a51b9a34fa85995c43275fb0f4a99aa40dd9c875128bbf4876006"
 dependencies = [
  "libc",
 ]
