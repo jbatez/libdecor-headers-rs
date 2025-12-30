@@ -3,6 +3,22 @@
 version = 4
 
 [[package]]
+name = "cc"
+version = "1.2.51"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7a0aeaff4ff1a90589618835a598e545176939b97874f7abc7851caa0618f203"
+dependencies = [
+ "find-msvc-tools",
+ "shlex",
+]
+
+[[package]]
+name = "find-msvc-tools"
+version = "0.1.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "645cbb3a84e60b7531617d5ae4e57f7e27308f6445f5abf653209ea76dec8dff"
+
+[[package]]
 name = "libc"
 version = "0.2.178"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -13,13 +29,29 @@ name = "libdecor-headers"
 version = "0.1.1+libdecor-0.2.2"
 dependencies = [
  "wayland-headers",
+ "wayland-protocol-statics",
 ]
 
 [[package]]
-name = "wayland-headers"
-version = "0.1.1+wayland-1.18.0-protocols-1.20"
+name = "shlex"
+version = "1.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f05b2e64dd5a51b9a34fa85995c43275fb0f4a99aa40dd9c875128bbf4876006"
+checksum = "0fda2ff0d084019ba4d7c6f371c95d8fd75ce3524c3cb8fb653a3023f6323e64"
+
+[[package]]
+name = "wayland-headers"
+version = "0.1.2+wayland-1.18.0-protocols-1.20"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a21bb701942b458e151054e639857e52710a2ca4428cdb52bc0ad5c816ef555d"
 dependencies = [
  "libc",
+]
+
+[[package]]
+name = "wayland-protocol-statics"
+version = "0.1.2+wayland-1.18.0-protocols-1.20"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ee3d41a42d7b2038c91f907fc77fe1092eac3baa417ac0929c50f5fea174f5c5"
+dependencies = [
+ "cc",
 ]
