@@ -1,8 +1,8 @@
 use std::{
-    cell::RefCell,
+    cell::{Cell, RefCell},
     ffi::{CStr, c_char, c_void},
     os::raw::c_int,
-    ptr::{self, null, null_mut},
+    ptr::{self, null},
 };
 
 use wayland_headers::{wayland_client::*, xdg_shell_client_protocol::*};
@@ -22,20 +22,20 @@ const CHK: c_int = 16;
 
 #[derive(Default)]
 struct Globals {
-    wl_compositor: *mut wl_compositor,
-    wl_shm: *mut wl_shm,
-    xdg_wm_base: *mut xdg_wm_base,
-    seats: Vec<Box<RefCell<Seat>>>,
-    outputs: Vec<Box<RefCell<Output>>>,
+    wl_compositor: Cell<*mut wl_compositor>,
+    wl_shm: Cell<*mut wl_shm>,
+    xdg_wm_base: Cell<*mut xdg_wm_base>,
+    seats: RefCell<Vec<Box<Seat>>>,
+    outputs: RefCell<Vec<Box<Output>>>,
 
-    has_xrgb8888: bool,
+    has_xrgb8888: Cell<bool>,
 
-    window: Option<Box<RefCell<Window>>>,
+    window: Cell<*const Window>,
 }
 
 impl Globals {
-    fn from_user_data<'a>(user_data: *mut c_void) -> &'a RefCell<Globals> {
-        let globals = user_data.cast::<RefCell<Globals>>();
+    fn from_user_data<'a>(user_data: *mut c_void) -> &'a Globals {
+        let globals = user_data.cast::<Globals>();
         let globals = unsafe { globals.as_ref() };
         globals.unwrap()
     }
@@ -47,26 +47,27 @@ struct Seat {
 
 struct Output {
     wl_output: *mut wl_output,
-    scale_factor: i32,
+    scale_factor: Cell<i32>,
 }
 
 impl Output {
-    fn from_user_data<'a>(user_data: *mut c_void) -> &'a RefCell<Output> {
-        let output = user_data.cast::<RefCell<Output>>();
+    fn from_user_data<'a>(user_data: *mut c_void) -> &'a Output {
+        let output = user_data.cast::<Output>();
         let output = unsafe { output.as_ref() };
         output.unwrap()
     }
 }
 
+#[derive(Default)]
 struct Window {
-    wl_surface: *mut wl_surface,
-    scale_factor: i32,
-    frame: *mut libdecor_frame,
+    wl_surface: Cell<*mut wl_surface>,
+    scale_factor: Cell<i32>,
+    frame: Cell<*mut libdecor_frame>,
 }
 
 impl Window {
-    fn from_user_data<'a>(user_data: *mut c_void) -> &'a RefCell<Window> {
-        let window = user_data.cast::<RefCell<Window>>();
+    fn from_user_data<'a>(user_data: *mut c_void) -> &'a Window {
+        let window = user_data.cast::<Window>();
         let window = unsafe { window.as_ref() };
         window.unwrap()
     }
@@ -74,7 +75,7 @@ impl Window {
 
 #[test]
 fn test() {
-    let globals = RefCell::new(Globals::default());
+    let globals = Globals::default();
     let globals = &globals;
     let globals_user_data = ptr::from_ref(globals).cast_mut().cast::<c_void>();
 
@@ -86,35 +87,32 @@ fn test() {
     unsafe { wl_registry_add_listener(wl_registry, &REGISTRY_LISTENER, globals_user_data) };
 
     unsafe { wl_display_roundtrip(wl_display) };
-    unsafe { wl_display_roundtrip(wl_display) };
-    assert!(globals.borrow().has_xrgb8888);
-
-    let window = Box::new(RefCell::new(Window {
-        wl_surface: null_mut(),
-        scale_factor: 1,
-        frame: null_mut(),
-    }));
-    let window_user_data = ptr::from_ref(window.as_ref()).cast_mut().cast::<c_void>();
-    globals.borrow_mut().window = Some(window);
-    let window = Window::from_user_data(window_user_data);
-
-    let wl_compositor = globals.borrow().wl_compositor;
+    let wl_compositor = globals.wl_compositor.get();
     assert!(!wl_compositor.is_null());
+
+    unsafe { wl_display_roundtrip(wl_display) };
+    assert!(globals.has_xrgb8888.get());
+
+    let window = Window::default();
+    let window = &window;
+    let window_user_data = ptr::from_ref(window).cast_mut().cast::<c_void>();
+    globals.window.set(window);
 
     let wl_surface = unsafe { wl_compositor_create_surface(wl_compositor) };
     assert!(!wl_surface.is_null());
-    window.borrow_mut().wl_surface = wl_surface;
+    window.wl_surface.set(wl_surface);
     unsafe { wl_surface_add_listener(wl_surface, &SURFACE_LISTENER, window_user_data) };
 
-    for output in &globals.borrow().outputs {
-        let window_scale_factor = window.borrow().scale_factor;
-        let output_scale_factor = output.borrow().scale_factor;
-        window.borrow_mut().scale_factor = i32::max(window_scale_factor, output_scale_factor);
+    window.scale_factor.set(1);
+    for output in &mut *globals.outputs.borrow_mut() {
+        let window_scale_factor = window.scale_factor.get();
+        let output_scale_factor = output.scale_factor.get();
+        let scale_factor = i32::max(window_scale_factor, output_scale_factor);
+        window.scale_factor.set(scale_factor);
     }
 
     let libdecor = unsafe { libdecor_new(wl_display, &raw mut LIBDECOR_INTERFACE) };
     assert!(!libdecor.is_null());
-
     let frame = unsafe {
         libdecor_decorate(
             libdecor,
@@ -124,7 +122,7 @@ fn test() {
         )
     };
     assert!(!frame.is_null());
-    window.borrow_mut().frame = frame;
+    window.frame.set(frame);
 
     unsafe {
         libdecor_frame_set_app_id(frame, c"libdecor-demo".as_ptr());
@@ -163,7 +161,7 @@ unsafe extern "C" fn on_registry_global(
             let wl_compositor = wl_compositor.cast::<wl_compositor>();
             assert!(!wl_compositor.is_null());
 
-            globals.borrow_mut().wl_compositor = wl_compositor;
+            globals.wl_compositor.set(wl_compositor);
         }
         b"wl_shm" => {
             assert!(interface_version >= 1);
@@ -171,7 +169,7 @@ unsafe extern "C" fn on_registry_global(
             let wl_shm = wl_shm.cast::<wl_shm>();
             assert!(!wl_shm.is_null());
 
-            globals.borrow_mut().wl_shm = wl_shm;
+            globals.wl_shm.set(wl_shm);
             unsafe { wl_shm_add_listener(wl_shm, &SHM_LISTENER, globals_user_data) };
         }
         b"wl_seat" => {
@@ -181,10 +179,10 @@ unsafe extern "C" fn on_registry_global(
             let wl_seat = wl_seat.cast::<wl_seat>();
             assert!(!wl_seat.is_null());
 
-            let seat = Box::new(RefCell::new(Seat { wl_seat }));
+            let seat = Box::new(Seat { wl_seat });
             let seat_user_data = ptr::from_ref(seat.as_ref()).cast_mut().cast::<c_void>();
 
-            globals.borrow_mut().seats.push(seat);
+            globals.seats.borrow_mut().push(seat);
             unsafe { wl_seat_add_listener(wl_seat, &SEAT_LISTENER, seat_user_data) };
         }
         b"wl_output" => {
@@ -194,13 +192,13 @@ unsafe extern "C" fn on_registry_global(
             let wl_output = wl_output.cast::<wl_output>();
             assert!(!wl_output.is_null());
 
-            let output = Box::new(RefCell::new(Output {
+            let output = Box::new(Output {
                 wl_output,
-                scale_factor: 1,
-            }));
+                scale_factor: Cell::new(1),
+            });
             let output_user_data = ptr::from_ref(output.as_ref()).cast_mut().cast::<c_void>();
 
-            globals.borrow_mut().outputs.push(output);
+            globals.outputs.borrow_mut().push(output);
             unsafe { wl_output_add_listener(wl_output, &OUTPUT_LISTENER, output_user_data) };
         }
         b"xdg_wm_base" => {
@@ -210,7 +208,7 @@ unsafe extern "C" fn on_registry_global(
             let xdg_wm_base = xdg_wm_base.cast::<xdg_wm_base>();
             assert!(!xdg_wm_base.is_null());
 
-            globals.borrow_mut().xdg_wm_base = xdg_wm_base;
+            globals.xdg_wm_base.set(xdg_wm_base);
             unsafe { xdg_wm_base_add_listener(xdg_wm_base, &WM_BASE_LISTENER, globals_user_data) };
         }
         _ => (),
@@ -235,7 +233,7 @@ unsafe extern "C" fn on_shm_format(
 ) {
     let globals = Globals::from_user_data(globals_user_data);
     if format == WL_SHM_FORMAT_XRGB8888 {
-        globals.borrow_mut().has_xrgb8888 = true;
+        globals.has_xrgb8888.set(true);
     }
 }
 
@@ -297,7 +295,7 @@ unsafe extern "C" fn on_output_scale(
     factor: i32,
 ) {
     let output = Output::from_user_data(output_user_data);
-    output.borrow_mut().scale_factor = factor;
+    output.scale_factor.set(factor);
 }
 
 static WM_BASE_LISTENER: xdg_wm_base_listener = xdg_wm_base_listener {
