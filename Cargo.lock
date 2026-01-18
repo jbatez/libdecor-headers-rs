@@ -10,16 +10,16 @@ checksum = "37c93d8daa9d8a012fd8ab92f088405fb202ea0b6ab73ee2482ae66af4f42091"
 
 [[package]]
 name = "libdecor-headers"
-version = "0.1.1+libdecor-0.2.2"
+version = "0.2.0+libdecor-0.2.2"
 dependencies = [
  "wayland-headers",
 ]
 
 [[package]]
 name = "wayland-headers"
-version = "0.1.1+wayland-1.18.0-protocols-1.20"
+version = "0.2.0+wayland-1.18.0-protocols-1.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f05b2e64dd5a51b9a34fa85995c43275fb0f4a99aa40dd9c875128bbf4876006"
+checksum = "876e2508ed03488817a53894a52eed4f472fbd99a4e22323eeb6b8548ce3cd46"
 dependencies = [
  "libc",
 ]
